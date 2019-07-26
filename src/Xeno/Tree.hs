@@ -66,7 +66,7 @@ indent c = mappend $ "\n" <> B.replicate c (toEnum $ fromEnum ' ')
 render :: [Node] -> ByteString
 render = mconcat . map (go 0)
   where
-    go c (Text t) = indent c  t
+    go c (Text t) = t
     go c (Element name attrs children) =
         indent c ("<" <> name <> mconcat (map (\(key, val) -> " " <> key <> "=\"" <> val <> "\"") attrs) <> ">")
         <>
