@@ -8,6 +8,7 @@ module Xeno.Tree where
 
 import Control.DeepSeq
 import Data.ByteString (ByteString)
+import qualified Data.ByteString as B
 import GHC.Generics
 import Xeno.Types
 import Xeno.SAX
@@ -59,15 +60,16 @@ parse i =
         do \s _ -> s
         Start
 
+indent :: Int -> ByteString -> ByteString
+indent c = mappend $ "\n" <> B.replicate c (toEnum $ fromEnum ' ')
+
 render :: [Node] -> ByteString
-render = mconcat . map go
+render = mconcat . map (go 0)
   where
-    go (Text t) = t
-    go (Element name attrs children) =
-      "<" <> name <>
-      mconcat (map (\(key, val) -> " " <> key <> "=\"" <> val <> "\"") attrs) <>
-      ">" <>
-      render children <>
-      "</" <>
-      name <>
-      ">"
+    go c (Text t) = indent c  t
+    go c (Element name attrs children) =
+        indent c ("<" <> name <> mconcat (map (\(key, val) -> " " <> key <> "=\"" <> val <> "\"") attrs) <> ">")
+        <>
+        mconcat (map (go $ c + 2) children) 
+        <>
+        indent c ("</" <> name <> ">")
