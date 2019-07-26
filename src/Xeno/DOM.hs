@@ -7,7 +7,7 @@
 
 module Xeno.DOM
   ( parse
-  , Node (..)
+  , Node
   , Content(..)
   , name
   , attributes
@@ -31,10 +31,16 @@ import           Xeno.Types
 
 -- | Some XML nodes.
 data Node = Node !ByteString !Int !(UV.Vector Int)
-          deriving (Eq, Show)
+  deriving (Eq)
 
 instance NFData Node where
   rnf !_ = ()
+
+instance Show Node where
+  show n =
+    "(Node " ++
+    show (name n) ++
+    " " ++ show (attributes n) ++ " " ++ show (contents n) ++ ")"
 
 -- | Content of a node.
 data Content

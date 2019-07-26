@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, BlockArguments #-}
 
 -- | Using the SAX parser, provide a simple tree interface.
 
@@ -8,8 +8,8 @@ module Xeno.Tree where
 
 import Control.DeepSeq
 import Data.ByteString (ByteString)
-import Data.Monoid
 import GHC.Generics
+import Xeno.Types
 import Xeno.SAX
 
 data Node
@@ -23,29 +23,30 @@ data State
   | Open ByteString [(ByteString,ByteString)] [Node] State
   deriving (Show, Generic, NFData)
 
-parse :: ByteString -> [Node]
+parse :: ByteString -> Either XenoException [Node]
 parse i =
   case run i of
-    Start -> []
-    Nodes ns -> ns
-    Open {} -> error "Missing closing tag."
+    Left e -> Left e
+    Right r -> Right $ case r of
+        Start -> []
+        Nodes ns -> ns
+        Open {} -> error "Missing closing tag."
   where
     run =
       fold
-        (\s name -> Open name [] [] s)
-        (\s key value ->
-           case s of
-             Open name attrs cs s' -> Open name ((key, value) : attrs) cs s'
-             _ -> error "Unexpected attributes.")
-        (\s _ -> s)
-        (\s text ->
-           let node = Text text
-           in case s of
-                Start -> Nodes [node]
-                Nodes ns -> Nodes (ns ++ [node])
-                Open name attrs cs s' -> Open name attrs (cs ++ [node]) s')
-        (\s name0 ->
-           case s of
+        do \s name -> Open name [] [] s
+        do \s key value ->
+            case s of
+                 Open name attrs cs s' -> Open name ((key, value) : attrs) cs s'
+                 _ -> error "Unexpected attributes."
+        do \s _ -> s
+        do \s text ->
+            let node = Text text
+                in case s of
+                        Start -> Nodes [node]
+                        Nodes ns -> Nodes (ns ++ [node])
+                        Open name attrs cs s' -> Open name attrs (cs ++ [node]) s'
+        do \s name0 -> case s of
              Open name attrs cs s'
                | name == name0 ->
                  let node = Element name attrs cs
@@ -54,7 +55,8 @@ parse i =
                       Nodes cs' -> Nodes (cs' ++ [node])
                       Open name' attrs' cs' s'' ->
                         Open name' attrs' (cs' ++ [node]) s''
-             _ -> error "Unexpected closing attribute.")
+             _ -> error "Unexpected closing attribute."
+        do \s _ -> s
         Start
 
 render :: [Node] -> ByteString
